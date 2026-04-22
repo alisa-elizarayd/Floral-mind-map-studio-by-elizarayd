@@ -2328,51 +2328,6 @@ if (mapShellTouch) {
         e.preventDefault();
     }, { passive: false });
 }
-
-// Множественное выделение
-let multiSelectMode = false;
-const multiBtn = document.getElementById('multiSelectBtn');
-const multiStatus = document.getElementById('multiSelectStatus');
-
-if (multiBtn) {
-    multiBtn.addEventListener('click', () => {
-        multiSelectMode = !multiSelectMode;
-        if (multiSelectMode) {
-            multiBtn.style.background = '#C71585';
-            multiStatus.textContent = '(вкл)';
-            setStatus("✅ Режим множественного выделения ВКЛЮЧЁН. Тапайте на узлы.");
-        } else {
-            multiBtn.style.background = '#FF69B4';
-            multiStatus.textContent = '(выкл)';
-            setStatus("Режим множественного выделения ВЫКЛЮЧЕН.");
-        }
-    });
-}
-
-// Переопределяем обработку кликов для мультивыбора
-const originalTouchPointerDown = onPointerDownMap;
-onPointerDownMap = function(event) {
-    const nodeEl = event.target.closest('.node');
-    if (nodeEl && multiSelectMode) {
-        const id = nodeEl.dataset.id;
-        if (state.selectedIds.has(id)) {
-            state.selectedIds.delete(id);
-            if (state.primarySelectedId === id) {
-                state.primarySelectedId = [...state.selectedIds][0] || null;
-            }
-        } else {
-            state.selectedIds.add(id);
-            state.primarySelectedId = id;
-        }
-        render();
-        event.preventDefault();
-        event.stopPropagation();
-        return;
-    }
-    if (originalTouchPointerDown) originalTouchPointerDown(event);
-};
-
-console.log("✅ iPad исправления активированы: скролл заблокирован, множественное выделение добавлено");
   </script>
 </body>
 </html>
