@@ -2252,18 +2252,18 @@ async function addExportButton() {
     `;
     
     dropdown.innerHTML = `
-        <div style="padding: 8px 0;">
-            <div class="export-item" data-type="png" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; color: #511b3d;">
-                <span>📷</span> PNG (обычное)
-            </div>
-            <div class="export-item" data-type="png-hq" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; color: #511b3d;">
-                <span>🌟</span> PNG (высокое качество)
-            </div>
-            <div class="export-item" data-type="pdf" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; color: #511b3d;">
-                <span>📄</span> PDF (для печати)
-            </div>
+    <div style="padding: 8px 0;">
+        <div class="export-item" data-type="png" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; color: #511b3d;">
+            <span>📷</span> PNG (обычное) <span style="font-size: 10px; color: #999; margin-left: 4px;">💻 только для ПК</span>
         </div>
-    `;
+        <div class="export-item" data-type="png-hq" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; color: #511b3d;">
+            <span>🌟</span> PNG (высокое качество) <span style="font-size: 10px; color: #999; margin-left: 4px;">💻 только для ПК</span>
+        </div>
+        <div class="export-item" data-type="pdf" style="padding: 12px 16px; cursor: pointer; display: flex; align-items: center; gap: 12px; color: #511b3d;">
+            <span>📄</span> PDF (для печати)
+        </div>
+    </div>
+`;
     
     // Обработчики
     dropdown.querySelector('[data-type="png"]').onclick = () => {
