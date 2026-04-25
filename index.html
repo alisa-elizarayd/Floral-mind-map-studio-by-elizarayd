@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+k<!DOCTYPE html>
 <html lang="ru">
 <head>
   <meta charset="UTF-8" />
@@ -521,6 +521,25 @@ body {
   padding: 4px 8px;
   border-radius: 20px;
   font-weight: 500;
+}
+    /* Исправление для iOS — гарантированная высота карты */
+.map-shell {
+  height: 100%;
+  min-height: 100%;
+  position: relative;
+}
+
+/* Для flex-контейнера, чтобы правильно работала высота */
+.flex-1 {
+  display: flex;
+  flex-direction: column;
+  min-height: 0; /* Важно для iOS Safari */
+}
+
+main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
 }
   </style>
 </head>
@@ -1712,102 +1731,103 @@ text</textarea>
       event.preventDefault();
     }
 
-    function onPointerMoveMap(event) {
-      if (state.dragMode === "move") {
-        const world = worldFromClient(event.clientX, event.clientY);
-        const rawDx = world.x - state.dragStart.worldX;
-        const rawDy = world.y - state.dragStart.worldY;
-
-        const primaryId = state.primarySelectedId;
-        const primarySnapshot = primaryId ? state.dragSnapshot.get(primaryId) : null;
-        const others = [];
-        state.nodes.forEach(node => { if (!state.selectedIds.has(node.id)) others.push(node); });
-
-        const xSnap = primarySnapshot ? findAxisSnap(primarySnapshot.x + rawDx, primarySnapshot.width, others, "x") : null;
-        const ySnap = primarySnapshot ? findAxisSnap(primarySnapshot.y + rawDy, primarySnapshot.height, others, "y") : null;
-        const snapEnabled = !event.shiftKey;
-        const dx = rawDx + (snapEnabled && xSnap ? xSnap.delta : 0);
-        const dy = rawDy + (snapEnabled && ySnap ? ySnap.delta : 0);
-
-        state.dragSnapshot.forEach((initial, nodeId) => {
-          const node = state.nodes.get(nodeId);
-          if (!node) return;
-          node.x = initial.x + dx;
-          node.y = initial.y + dy;
-        });
-
-        showGuides(xSnap ? xSnap.coordinate : null, ySnap ? ySnap.coordinate : null, event.shiftKey);
-        render();
-        return;
+   function onPointerMoveMap(event) {
+  // ========== ПЕРЕМЕЩЕНИЕ УЗЛОВ ==========
+  if (state.dragMode === "move") {
+    const world = worldFromClient(event.clientX, event.clientY);
+    const rawDx = world.x - state.dragStart.worldX;
+    const rawDy = world.y - state.dragStart.worldY;
+    const primaryId = state.primarySelectedId;
+    const primarySnapshot = primaryId ? state.dragSnapshot.get(primaryId) : null;
+    const others = [];
+    state.nodes.forEach(node => { if (!state.selectedIds.has(node.id)) others.push(node); });
+    
+    const xSnap = primarySnapshot ? findAxisSnap(primarySnapshot.x + rawDx, primarySnapshot.width, others, "x") : null;
+    const ySnap = primarySnapshot ? findAxisSnap(primarySnapshot.y + rawDy, primarySnapshot.height, others, "y") : null;
+    const snapEnabled = !event.shiftKey;
+    const dx = rawDx + (snapEnabled && xSnap ? xSnap.delta : 0);
+    const dy = rawDy + (snapEnabled && ySnap ? ySnap.delta : 0);
+    
+    state.dragSnapshot.forEach((initial, nodeId) => {
+      const node = state.nodes.get(nodeId);
+      if (node) { node.x = initial.x + dx; node.y = initial.y + dy; }
+    });
+    
+    showGuides(xSnap ? xSnap.coordinate : null, ySnap ? ySnap.coordinate : null, event.shiftKey);
+    render();
+    return;
+  }
+  
+  // ========== ИЗМЕНЕНИЕ РАЗМЕРА ==========
+  if (state.dragMode === "resize") {
+    const world = worldFromClient(event.clientX, event.clientY);
+    const dx = world.x - state.dragStart.worldX;
+    const dy = world.y - state.dragStart.worldY;
+    
+    state.dragSnapshot.forEach((initial, nodeId) => {
+      const node = state.nodes.get(nodeId);
+      if (!node) return;
+      
+      // Для plain-текста — меняем font-size
+      if (node.isPlainText) {
+        const handle = state.dragHandle || "bottom-right";
+        if (handle === "bottom-right" || handle === "corner-br") {
+          const delta = (dx + dy) / 2;
+          const newSize = Math.min(128, Math.max(8, (initial.fontSize || 16) + delta));
+          node.fontSize = newSize;
+          node.width = Math.max(80, initial.width + dx);
+          node.height = Math.max(28, initial.height + dy);
+        }
+        return; // ← ВАЖНО: выходим, чтобы не применять обычную логику
       }
-
-      if (state.dragMode === "resize") {
-        // Оставляем оригинальный код resize из Tokyo (не меняем)
-        const world = worldFromClient(event.clientX, event.clientY);
-        const dx = world.x - state.dragStart.worldX;
-        const dy = world.y - state.dragStart.worldY;
-        state.dragSnapshot.forEach((initial, nodeId) => {
-          const node = state.nodes.get(nodeId);
-          if (!node) return;
- // Для plain-текста — меняем font-size
-    if (node.isPlainText) {
+      
+      // Стандартная логика для обычных узлов
       const handle = state.dragHandle || "bottom-right";
-      // Диагональный ресайз меняет размер шрифта
-      if (handle === "bottom-right" || handle === "corner-br") {
-        const delta = (dx + dy) / 2;
-        const newSize = Math.min(128, Math.max(8, (initial.fontSize || 16) + delta));
-        node.fontSize = newSize;
-        // Обновляем размеры блока
-        node.width = Math.max(80, initial.width + dx);
-        node.height = Math.max(28, initial.height + dy);
+      let nextWidth = initial.width;
+      let nextHeight = initial.height;
+      let nextX = initial.x;
+      let nextY = initial.y;
+      
+      if (handle.includes("right")) {
+        nextWidth = Math.min(420, Math.max(102, initial.width + dx));
+        nextX = initial.x + (nextWidth - initial.width) / 2;
       }
-      return;
-    }
-    
-    // Стандартная логика для обычных узлов
-    const handle = state.dragHandle || "bottom-right";
-    let nextWidth = initial.width;
-    let nextHeight = initial.height;
-    let nextX = initial.x;
-    let nextY = initial.y;
-    
-    if (handle.includes("right")) {
-      nextWidth = Math.min(420, Math.max(102, initial.width + dx));
-      nextX = initial.x + (nextWidth - initial.width) / 2;
-    }
-    if (handle.includes("left")) {
-      nextWidth = Math.min(420, Math.max(102, initial.width - dx));
-      nextX = initial.x - (nextWidth - initial.width) / 2;
-    }
-    if (handle === "top" || handle.includes("top-")) {
-      nextHeight = Math.min(260, Math.max(42, initial.height - dy));
-      nextY = initial.y - (nextHeight - initial.height) / 2;
-    }
-    if (handle === "bottom" || handle.includes("bottom-")) {
-      nextHeight = Math.min(260, Math.max(42, initial.height + dy));
-      nextY = initial.y + (nextHeight - initial.height) / 2;
-    }
-    
-    node.width = nextWidth;
-    node.height = nextHeight;
-    node.x = nextX;
-    node.y = nextY;
-  });
-  render();
-  return;
+      if (handle.includes("left")) {
+        nextWidth = Math.min(420, Math.max(102, initial.width - dx));
+        nextX = initial.x - (nextWidth - initial.width) / 2;
+      }
+      if (handle === "top" || handle.includes("top-")) {
+        nextHeight = Math.min(260, Math.max(42, initial.height - dy));
+        nextY = initial.y - (nextHeight - initial.height) / 2;
+      }
+      if (handle === "bottom" || handle.includes("bottom-")) {
+        nextHeight = Math.min(260, Math.max(42, initial.height + dy));
+        nextY = initial.y + (nextHeight - initial.height) / 2;
+      }
+      
+      node.width = nextWidth;
+      node.height = nextHeight;
+      node.x = nextX;
+      node.y = nextY;
+    });
+    render();
+    return;
+  }
+  
+  // ========== ВЫДЕЛЕНИЕ ПРЯМОУГОЛЬНИКОМ ==========
+  if (state.dragMode === "select") {
+    showSelectionRect(state.selectStartClient.x, state.selectStartClient.y, event.clientX, event.clientY);
+    return;
+  }
+  
+  // ========== ПАНОРАМИРОВАНИЕ ==========
+  if (!state.isPanning) return;
+  const dx = event.clientX - state.panStart.clientX;
+  const dy = event.clientY - state.panStart.clientY;
+  state.panX = state.panStart.panX + dx;
+  state.panY = state.panStart.panY + dy;
+  updateTransform();
 }
-      if (state.dragMode === "select") {
-        showSelectionRect(state.selectStartClient.x, state.selectStartClient.y, event.clientX, event.clientY);
-        return;
-      }
-
-      if (!state.isPanning) return;
-      const dx = event.clientX - state.panStart.clientX;
-      const dy = event.clientY - state.panStart.clientY;
-      state.panX = state.panStart.panX + dx;
-      state.panY = state.panStart.panY + dy;
-      updateTransform();
-    }
 
     function endPointerInteraction(event) {
       if (state.activePointerId !== null && event && event.pointerId !== state.activePointerId) {
@@ -2575,9 +2595,6 @@ async function exportPDF() {
         showLoading(false);
         if (typeof render === 'function') render();
     }
-}
-
-
 
 
 // Создание кнопки экспорта
