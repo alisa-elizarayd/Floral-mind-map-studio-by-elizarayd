@@ -25,7 +25,7 @@
       font-family: "Inter", "Segoe UI", sans-serif;
       cursor: var(--rose-cursor);
       background-image:
-        linear-gradient(145deg, rgba(255, 192, 203, 0.85), rgba(255, 182, 193, 0.66), rgba(219, 112, 147, 0.72)),
+        linear-gradient(145deg, rgba(255, 192, 203, 0.85), rgba(255, 182, 193, 0.66), rgba(219, 112, 147, 0.72));
        
       background-size: cover;
       background-position: center;
@@ -126,6 +126,77 @@
       user-select: none;
     }
 
+
+/* ========== ФОРМЫ ЭЛЕМЕНТОВ ========== */
+/* Форма 1: Прямоугольник */
+.node.shape-rect {
+  border-radius: 0px;
+}
+
+/* Форма 2: Скруглённый прямоугольник */
+.node.shape-rounded {
+  border-radius: 16px;
+}
+
+/* Форма 3: Оригинальная (цветочная) */
+.node.shape-flower {
+  border-radius: 20px;
+}
+
+/* ========== КНОПКИ ВЫБОРА ФОРМЫ ========== */
+.shape-preview {
+  width: 40px;
+  height: 40px;
+  border: 2px solid rgba(199, 21, 133, 0.5);
+  background: #fffafc;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+}
+.shape-preview.active {
+  border-color: #C71585;
+  background: #FFF0F5;
+  box-shadow: 0 0 0 2px #C71585;
+  transform: scale(1.05);
+}
+.shape-preview-rect {
+  border-radius: 0px;
+}
+.shape-preview-rounded {
+  border-radius: 12px;
+}
+.shape-preview-flower {
+  border-radius: 16px 8px 16px 8px;
+}
+
+/* ========== АДАПТИВНЫЕ ХЕНДЛЫ ДЛЯ ТАЧ-УСТРОЙСТВ ========== */
+@media (pointer: coarse) {
+  .resize-handle.edge-left,
+  .resize-handle.edge-right {
+    width: 24px;
+  }
+  .resize-handle.edge-top,
+  .resize-handle.edge-bottom {
+    height: 24px;
+  }
+  .resize-handle.corner {
+    width: 32px;
+    height: 32px;
+  }
+  .resize-handle.corner::after {
+    width: 20px;
+    height: 20px;
+    font-size: 14px;
+  }
+}
+
+.node, button, .zoom-btn, .palette-btn, .format-btn {
+  -webkit-tap-highlight-color: rgba(0,0,0,0.05);
+  touch-action: manipulation;
+}
 
     .node .resize-handle {
       position: absolute;
@@ -555,6 +626,28 @@ body {
       <div class="mt-5 border-t border-[#e28ab8] pt-4">
         <p class="text-sm font-medium">Выбранный элемент: <span id="selectedName" class="font-semibold">нет</span></p>
 
+
+<!-- ========== ВЫБОР ФОРМЫ ЭЛЕМЕНТА ========== -->
+<div id="shapeSelectorBlock" class="mt-3" style="display: none;">
+  <label class="block text-sm font-medium text-[#811455] mb-2">🌸 Выберите форму элемента</label>
+  <div class="flex gap-3 items-center">
+    <button type="button" class="shape-preview shape-preview-rect" data-shape="rect" title="Прямоугольник">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="5" width="18" height="14" rx="0" />
+      </svg>
+    </button>
+    <button type="button" class="shape-preview shape-preview-rounded" data-shape="rounded" title="Скруглённый">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <rect x="3" y="5" width="18" height="14" rx="6" />
+      </svg>
+    </button>
+    <button type="button" class="shape-preview shape-preview-flower" data-shape="flower" title="Цветочная">
+      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+        <path d="M5,8 Q12,4 19,8 Q21,12 19,16 Q12,20 5,16 Q3,12 5,8Z" />
+      </svg>
+    </button>
+  </div>
+</div>
         <label class="block mt-3 text-sm font-medium">Добавить подэлемент</label>
         <div class="mt-1 flex gap-2">
           <input id="newNodeText" class="flex-1 rounded-lg border border-[#d66aa4] bg-[#fff7fb] px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-[#c71585]" placeholder="Текст подэлемента" />
@@ -576,7 +669,7 @@ body {
 
 <!-- Добавить рядом с deleteNode или в отдельный блок -->
 <div class="mt-2 flex gap-2">
-  <button id="addPlainTextBtn" class="rounded-full bg-[#A16531] px-4 py-2 text-sm text-white cursor-pointer">
+  <button id="addPlainTextBtn" class="rounded-full bg-[#db0079] px-4 py-2 text-sm text-white cursor-pointer">
     📝 Текст
   </button>
 </div>
@@ -726,6 +819,8 @@ text</textarea>
     const nodesLayer = document.getElementById("nodesLayer");
     const palette = document.getElementById("palette");
     const selectionRect = document.getElementById("selectionRect");
+    const shapeSelectorBlock = document.getElementById("shapeSelectorBlock");
+
 
    // ========== ВСТАВИТЬ НОВЫЕ ПЕРЕМЕННЫЕ ЗДЕСЬ ==========
     const SNAP_DISTANCE = 10;
@@ -942,35 +1037,39 @@ text</textarea>
         .replace(/<\/?(b|i|u)>/gi, "");
     }
 
-    function openInlineEditor(nodeId) {
-      const node = state.nodes.get(nodeId);
-      if (!node) return;
-      if (state.inlineEditingId === nodeId) return;
-      state.inlineEditingId = nodeId;
-      state.inlineEditOriginalText = node.text;
-      setSelection([nodeId], nodeId);
-      render();
-
-      requestAnimationFrame(() => {
-        const editor = nodesLayer.querySelector(`.inline-node-editor[data-node-editor="${nodeId}"]`);
-        if (!editor) return;
-        editor.focus();
-        editor.select();
-        state.activeTextField = editor;
-        rememberInlineSelection(editor);
-        toggleTextFormatPopup(true);
-        updateTextFormatPopupBySelection(true);
-        // Safari can commit selection slightly later after focus/select.
-        requestAnimationFrame(() => {
-          if (state.inlineEditingId !== nodeId) return;
-          updateTextFormatPopupBySelection(true);
-        });
-        setTimeout(() => {
-          if (state.inlineEditingId !== nodeId) return;
-          updateTextFormatPopupBySelection(true);
-        }, 30);
-      });
+    //function openInlineEditor(nodeId) {
+      
+function openInlineEditor(nodeId) {
+  if (state.inlineEditingId === nodeId) return;
+  const node = state.nodes.get(nodeId);
+  if (!node) return;
+  
+  if (state.inlineEditingId) {
+    closeInlineEditor(true);
+  }
+  
+  state.inlineEditingId = nodeId;
+  state.inlineEditOriginalText = node.text;
+  setSelection([nodeId], nodeId);
+  render();
+  
+  const tryFocus = () => {
+    const editor = nodesLayer.querySelector(`.inline-node-editor[data-node-editor="${nodeId}"]`);
+    if (editor) {
+      editor.style.color = node.isPlainText ? '#333333' : getContrastColor(node.color);
+      editor.focus();
+      editor.select();
+      state.activeTextField = editor;
+      updateTextFormatPopupBySelection(true);
     }
+  };
+  
+  if (window.innerWidth <= 768) {
+    setTimeout(tryFocus, 50);
+  } else {
+    requestAnimationFrame(tryFocus);
+  }
+}
 
     function closeInlineEditor(saveChanges = true) {
       if (!state.inlineEditingId) return;
@@ -1007,6 +1106,7 @@ text</textarea>
     function applyMapBackground(color) {
       mapShell.style.background = color;
       setStatus("Фон рабочей области обновлен.");
+      autoSave();
     }
 
     function hsbToHex(h, s, v) {
@@ -1078,7 +1178,7 @@ text</textarea>
       return value.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\"/g, "&quot;");
     }
 
-    function createNode(text, parentId = null, x = 0, y = 0, color = "#F5DEB3", isPlainText = false) {
+    function createNode(text, parentId = null, x = 0, y = 0, color = "#F5DEB3", isPlainText = false, shape = "flower") {
   const id = String(state.idCounter++);
   const node = { 
     id, text, parentId, children: [], 
@@ -1086,14 +1186,14 @@ text</textarea>
     width: isPlainText ? 140 : 156, 
     height: isPlainText ? 32 : 64,
     isPlainText: isPlainText,
-    fontSize: isPlainText ? 16 : 14
+    fontSize: isPlainText ? 16 : 14,
+    shape: isPlainText ? null : shape
   };
   state.nodes.set(id, node);
-  if (parentId && state.nodes.has(parentId)) {
-    state.nodes.get(parentId).children.push(id);
-  }
+  if (parentId && state.nodes.has(parentId)) state.nodes.get(parentId).children.push(id);
   return id;
 }
+
 
     function clearMapData() {
       state.nodes.clear();
@@ -1103,6 +1203,7 @@ text</textarea>
       state.idCounter = 1;
       selectedName.textContent = "нет";
       renameNodeText.value = "";
+      shapeSelectorBlock.style.display = "none";
       render();
     }
 
@@ -1289,13 +1390,25 @@ text</textarea>
     }
 
 
+function getContrastColor(hexColor) {
+  if (!hexColor || hexColor === 'transparent') return '#333333';
+  let hex = hexColor.replace('#', '');
+  if (hex.length === 3) hex = hex.split('').map(c => c + c).join('');
+  const r = parseInt(hex.substring(0, 2), 16);
+  const g = parseInt(hex.substring(2, 4), 16);
+  const b = parseInt(hex.substring(4, 6), 16);
+  const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
+  return brightness < 128 ? '#FFFFFF' : '#333333';
+}
+
+
     function renderNodes() {
   const html = [];
   state.nodes.forEach(node => {
     const selectedClass = state.selectedIds.has(node.id) ? "selected" : "";
     const editingClass = state.inlineEditingId === node.id ? "editing" : "";
     const plainClass = node.isPlainText ? "plain-text" : "";
-    
+    const shapeClass = (!node.isPlainText && node.shape) ? getShapeClass(node.shape) : "";
     const labelHtml = sanitizeNodeHtml(node.text);
     const editorHtml = state.inlineEditingId === node.id
       ? `<textarea class="inline-node-editor" data-node-editor="${node.id}" style="font-size:${node.fontSize || 14}px;">${escapeHtml(node.text)}</textarea>`
@@ -1319,7 +1432,7 @@ text</textarea>
     // Для plain-текста background всегда transparent, для обычных — node.color
     const bgColor = node.isPlainText ? 'transparent' : node.color;
     
-    html.push(`<div class="node ${selectedClass} ${editingClass} ${plainClass}" 
+    html.push(`<div class="node ${selectedClass} ${editingClass} ${plainClass} ${shapeClass}" 
       data-id="${node.id}" 
       data-plain="${node.isPlainText || false}"
       style="left:${node.x}px; top:${node.y}px; width:${node.width}px; height:${node.height}px; background:${bgColor};" 
@@ -1346,25 +1459,38 @@ text</textarea>
             if (node) node.color = color;
           });
           render();
+          autoSave();
         });
         palette.appendChild(btn);
       });
     }
 
     function renderSelectedMeta() {
-      const selectedCount = state.selectedIds.size;
-      const node = state.nodes.get(state.primarySelectedId);
-      if (!selectedCount || !node) {
-        selectedName.textContent = "нет";
-        renameNodeText.value = "";
-        updateFontSizeDisplay();
-        return;
-      }
-      const plain = stripFormattingTags(node.text);
-      selectedName.textContent = selectedCount > 1 ? `${plain} (+${selectedCount - 1})` : plain;
-      renameNodeText.value = plain;
-      updateFontSizeDisplay();
-    }
+  const selectedCount = state.selectedIds.size;
+  const node = state.nodes.get(state.primarySelectedId);
+  if (!selectedCount || !node) {
+    selectedName.textContent = "нет";
+    renameNodeText.value = "";
+    shapeSelectorBlock.style.display = "none";
+    updateFontSizeDisplay();
+    return;
+  }
+  const plain = stripFormattingTags(node.text);
+  selectedName.textContent = selectedCount > 1 ? `${plain} (+${selectedCount - 1})` : plain;
+  renameNodeText.value = plain;
+  
+  // Показываем блок выбора формы только для одного обычного узла
+  if (!node.isPlainText && selectedCount === 1) {
+    shapeSelectorBlock.style.display = "block";
+    updateShapeSelectorUI(node.shape || "flower");
+  } else {
+    shapeSelectorBlock.style.display = "none";
+  }
+  
+  updateFontSizeDisplay();
+}
+
+
 
     function setSelection(ids, primaryId = null) {
       state.selectedIds = new Set(ids.filter(id => state.nodes.has(id)));
@@ -1392,6 +1518,7 @@ text</textarea>
       renderPalette();
       renderSelectedMeta();
       updateTransform();
+      autoSave();
     }
 
 
@@ -1491,11 +1618,12 @@ text</textarea>
         return;
       }
       const parent = state.nodes.get(state.primarySelectedId);
-      const newId = createNode(text, parent.id, parent.x + 150 + parent.children.length * 8, parent.y + (parent.children.length % 2 ? 92 : -92), paletteColors[(parent.children.length + 2) % paletteColors.length]);
+      const newId = createNode(text, parent.id, parent.x + 150 + parent.children.length * 8, parent.y + (parent.children.length % 2 ? 92 : -92), paletteColors[(parent.children.length + 2) % paletteColors.length], false, parent.shape || "flower");
       setSelection([newId], newId);
       newNodeText.value = "";
       setStatus("Подэлемент добавлен. Перетащите его в нужную позицию.");
       render();
+      autoSave();
     }
 
     function renameSelectedNode() {
@@ -1512,6 +1640,7 @@ text</textarea>
       node.text = text;
       setStatus("Название элемента обновлено.");
       render();
+      autoSave();
     }
 
     function collectSubtreeIds(id, list) {
@@ -2024,8 +2153,7 @@ text</textarea>
     closeIntroBtn.addEventListener("click", closeIntro);
     openIntroBtn.addEventListener("click", openIntro);
     mapShell.addEventListener("pointerdown", onPointerDownMap);
-    mapShell.addEventListener("pointermove", onPointerMoveMap);
-    mapShell.addEventListener("pointerup", endPointerInteraction);
+    mapShell.addEventListener("pointermove", onPointerMoveMap, { passive: false });      mapShell.addEventListener("pointerup", endPointerInteraction);
     mapShell.addEventListener("pointercancel", endPointerInteraction);
     window.addEventListener("pointermove", onPointerMoveMap);
     window.addEventListener("pointerup", endPointerInteraction);
@@ -2034,6 +2162,8 @@ text</textarea>
     mapShell.addEventListener("contextmenu", event => {
       event.preventDefault();
     });
+
+
 
     zoomInBtn.addEventListener("click", () => zoomBy(1.16));
     zoomOutBtn.addEventListener("click", () => zoomBy(1 / 1.16));
@@ -2265,153 +2395,256 @@ async function exportPNG_Transparent() {
 }
 
 // Экспорт PNG HQ с прозрачным фоном
+
+
 async function exportPNGHQ_Transparent() {
-    const container = document.getElementById('mapShell');
-    if (!container) { alert("Контейнер не найден"); return; }
+  const container = document.getElementById('mapShell');
+  const stage = document.getElementById('mapStage');
+  if (!container) { alert("Контейнер не найден"); return; }
+  
+  showLoading(true);
+  
+  const allNodes = document.querySelectorAll('.node');
+  const originalShadows = [];
+  allNodes.forEach(node => {
+    originalShadows.push({ node, shadow: node.style.boxShadow });
+    node.style.boxShadow = 'none';
+  });
+  
+  hideUIElements();
+  if (state.inlineEditingId && typeof closeInlineEditor === 'function') closeInlineEditor(true);
+  
+  const originalOverflow = container.style.overflow;
+  const originalPosition = stage.style.position;
+  const originalPanX = state.panX;
+  const originalPanY = state.panY;
+  const originalScale = state.scale;
+  const originalContainerBg = container.style.background;
+  const originalBodyBg = document.body.style.background;
+  const originalHtmlBg = document.documentElement.style.background;
+  
+  try {
+    state.panX = 0;
+    state.panY = 0;
+    state.scale = 1;
+    updateTransform();
     
-    showLoading(true);
+    container.style.overflow = 'visible';
+    stage.style.position = 'relative';
+    container.style.background = 'transparent';
+    document.body.style.background = 'transparent';
+    document.documentElement.style.background = 'transparent';
     
-    const allNodes = document.querySelectorAll('.node');
-    const originalShadows = [];
-    allNodes.forEach(node => {
-        originalShadows.push({
-            node,
-            shadow: node.style.boxShadow
-        });
-        node.style.boxShadow = 'none';
+    await new Promise(r => setTimeout(r, 150));
+    
+    const nodes = document.querySelectorAll('.node');
+    const edgesSvg = document.getElementById('edges');
+    
+    if (nodes.length === 0) throw new Error("Нет узлов для экспорта");
+    
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    nodes.forEach(node => {
+      const left = parseFloat(node.style.left);
+      const top = parseFloat(node.style.top);
+      const width = node.offsetWidth;
+      const height = node.offsetHeight;
+      
+      const nodeLeft = left - width / 2;
+      const nodeRight = left + width / 2;
+      const nodeTop = top - height / 2;
+      const nodeBottom = top + height / 2;
+      const padding = 30;
+      
+      minX = Math.min(minX, nodeLeft - padding);
+      maxX = Math.max(maxX, nodeRight + padding);
+      minY = Math.min(minY, nodeTop - padding);
+      maxY = Math.max(maxY, nodeBottom + padding);
     });
     
-    hideUIElements();
-    if (state.inlineEditingId && typeof closeInlineEditor === 'function') closeInlineEditor(true);
-    
-    // КЛЮЧЕВОЕ: принудительно убираем фон
-    const savedBgStyles = forceTransparentBackground(container);
-    
-    await new Promise(r => setTimeout(r, 200));
-    
-    try {
-        const canvas = await htmlToImage.toCanvas(container, {
-            quality: 1,
-            pixelRatio: 5,
-            backgroundColor: null,
-            style: {
-                background: 'transparent'
-            }
-        });
-        
-        const dataUrl = canvas.toDataURL('image/png');
-        const link = document.createElement('a');
-        link.download = `mindmap_hq_transparent_${getDateString()}.png`;
-        link.href = dataUrl;
-        link.click();
-        setStatus("✅ PNG высокого качества (прозрачный фон) сохранён!");
-    } catch (error) {
-        console.error('HQ export error:', error);
-        setStatus("❌ Ошибка: " + error.message, true);
-    } finally {
-        restoreBackground(savedBgStyles);
-        
-        originalShadows.forEach(({ node, shadow }) => {
-            node.style.boxShadow = shadow;
-        });
-        
-        showUIElements();
-        showLoading(false);
-        if (typeof render === 'render') render();
+    if (edgesSvg) {
+      const linePaths = edgesSvg.querySelectorAll('.line');
+      linePaths.forEach(line => {
+        const bbox = line.getBBox();
+        if (bbox.x !== undefined) {
+          minX = Math.min(minX, bbox.x - 20);
+          minY = Math.min(minY, bbox.y - 20);
+          maxX = Math.max(maxX, bbox.x + bbox.width + 20);
+          maxY = Math.max(maxY, bbox.y + bbox.height + 20);
+        }
+      });
     }
+    
+    const safePadding = 60;
+    const cropX = minX - safePadding;
+    const cropY = minY - safePadding;
+    const cropWidth = (maxX - minX) + safePadding * 2;
+    const cropHeight = (maxY - minY) + safePadding * 2;
+    
+    const canvas = await htmlToImage.toCanvas(container, {
+      pixelRatio: 5,
+      backgroundColor: null,
+      quality: 1,
+      width: cropWidth,
+      height: cropHeight,
+      style: {
+        transform: `translate(${-cropX}px, ${-cropY}px)`,
+        transformOrigin: 'top left'
+      }
+    });
+    
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `mindmap_hq_transparent_${getDateString()}.png`;
+    link.href = dataUrl;
+    link.click();
+    setStatus("✅ PNG HQ (прозрачный) сохранён!");
+    
+  } catch (error) {
+    console.error('Export error:', error);
+    setStatus("❌ Ошибка: " + error.message, true);
+  } finally {
+    originalShadows.forEach(({ node, shadow }) => { node.style.boxShadow = shadow; });
+    container.style.overflow = originalOverflow;
+    stage.style.position = originalPosition;
+    container.style.background = originalContainerBg;
+    document.body.style.background = originalBodyBg;
+    document.documentElement.style.background = originalHtmlBg;
+    state.panX = originalPanX;
+    state.panY = originalPanY;
+    state.scale = originalScale;
+    updateTransform();
+    showUIElements();
+    showLoading(false);
+    if (typeof render === 'function') render();
+  }
 }
+
+
 
 // Экспорт PNG с цветным фоном (оставляем для совместимости)
-async function exportPNG_Colored() {
-    const container = document.getElementById('mapShell');
-    if (!container) { alert("Контейнер не найден"); return; }
-    
-    showLoading(true);
-    
-    const allNodes = document.querySelectorAll('.node');
-    const originalShadows = [];
-    allNodes.forEach(node => {
-        originalShadows.push({
-            node,
-            shadow: node.style.boxShadow
-        });
-        node.style.boxShadow = 'none';
-    });
-    
-    hideUIElements();
-    if (state.inlineEditingId && typeof closeInlineEditor === 'function') closeInlineEditor(true);
-    await new Promise(r => setTimeout(r, 200));
-    
-    try {
-        const bgColor = mapShell.style.background || '#FFCCE9';
-        const dataUrl = await htmlToImage.toPng(container, {
-            quality: 0.95,
-            pixelRatio: 2,
-            backgroundColor: bgColor
-        });
-        const link = document.createElement('a');
-        link.download = `mindmap_colored_${getDateString()}.png`;
-        link.href = dataUrl;
-        link.click();
-        setStatus("✅ PNG с цветным фоном сохранён!");
-    } catch (error) {
-        setStatus("❌ Ошибка: " + error.message, true);
-    } finally {
-        originalShadows.forEach(({ node, shadow }) => {
-            node.style.boxShadow = shadow;
-        });
-        showUIElements();
-        showLoading(false);
-        if (typeof render === 'function') render();
-    }
-}
 
 async function exportPNGHQ_Colored() {
-    const container = document.getElementById('mapShell');
-    if (!container) { alert("Контейнер не найден"); return; }
+  const container = document.getElementById('mapShell');
+  const stage = document.getElementById('mapStage');
+  if (!container) { alert("Контейнер не найден"); return; }
+  
+  showLoading(true);
+  
+  const allNodes = document.querySelectorAll('.node');
+  const originalShadows = [];
+  allNodes.forEach(node => {
+    originalShadows.push({ node, shadow: node.style.boxShadow });
+    node.style.boxShadow = 'none';
+  });
+  
+  hideUIElements();
+  if (state.inlineEditingId && typeof closeInlineEditor === 'function') closeInlineEditor(true);
+  
+  // СОХРАНЯЕМ оригинальные параметры
+  const originalOverflow = container.style.overflow;
+  const originalPosition = stage.style.position;
+  const originalPanX = state.panX;
+  const originalPanY = state.panY;
+  const originalScale = state.scale;
+  
+  try {
+    // ВРЕМЕННО сбрасываем для захвата всей карты
+    state.panX = 0;
+    state.panY = 0;
+    state.scale = 1;
+    updateTransform();
     
-    showLoading(true);
+    container.style.overflow = 'visible';
+    stage.style.position = 'relative';
     
-    const allNodes = document.querySelectorAll('.node');
-    const originalShadows = [];
-    allNodes.forEach(node => {
-        originalShadows.push({
-            node,
-            shadow: node.style.boxShadow
-        });
-        node.style.boxShadow = 'none';
+    await new Promise(r => setTimeout(r, 150));
+    
+    const nodes = document.querySelectorAll('.node');
+    const edgesSvg = document.getElementById('edges');
+    
+    if (nodes.length === 0) throw new Error("Нет узлов для экспорта");
+    
+    // ВЫЧИСЛЯЕМ ГРАНИЦЫ всех узлов
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    
+    nodes.forEach(node => {
+      const left = parseFloat(node.style.left);
+      const top = parseFloat(node.style.top);
+      const width = node.offsetWidth;
+      const height = node.offsetHeight;
+      
+      const nodeLeft = left - width / 2;
+      const nodeRight = left + width / 2;
+      const nodeTop = top - height / 2;
+      const nodeBottom = top + height / 2;
+      const padding = 30;
+      
+      minX = Math.min(minX, nodeLeft - padding);
+      maxX = Math.max(maxX, nodeRight + padding);
+      minY = Math.min(minY, nodeTop - padding);
+      maxY = Math.max(maxY, nodeBottom + padding);
     });
     
-    hideUIElements();
-    if (state.inlineEditingId && typeof closeInlineEditor === 'function') closeInlineEditor(true);
-    await new Promise(r => setTimeout(r, 200));
-    
-    try {
-        const bgColor = mapShell.style.background || '#FFCCE9';
-        const dataUrl = await htmlToImage.toPng(container, {
-            quality: 1,
-            pixelRatio: 5,
-            backgroundColor: bgColor
-        });
-        const link = document.createElement('a');
-        link.download = `mindmap_hq_colored_${getDateString()}.png`;
-        link.href = dataUrl;
-        link.click();
-        setStatus("✅ PNG высокого качества (цветной фон) сохранён!");
-    } catch (error) {
-        setStatus("❌ Ошибка: " + error.message, true);
-    } finally {
-        originalShadows.forEach(({ node, shadow }) => {
-            node.style.boxShadow = shadow;
-        });
-        showUIElements();
-        showLoading(false);
-        if (typeof render === 'function') render();
+    // УЧИТЫВАЕМ ЛИНИИ
+    if (edgesSvg) {
+      const linePaths = edgesSvg.querySelectorAll('.line');
+      linePaths.forEach(line => {
+        const bbox = line.getBBox();
+        if (bbox.x !== undefined) {
+          minX = Math.min(minX, bbox.x - 20);
+          minY = Math.min(minY, bbox.y - 20);
+          maxX = Math.max(maxX, bbox.x + bbox.width + 20);
+          maxY = Math.max(maxY, bbox.y + bbox.height + 20);
+        }
+      });
     }
+    
+    const safePadding = 60;
+    const cropX = minX - safePadding;
+    const cropY = minY - safePadding;
+    const cropWidth = (maxX - minX) + safePadding * 2;
+    const cropHeight = (maxY - minY) + safePadding * 2;
+    
+    // ФОН берём из mapShell
+    const bgColor = mapShell.style.background || '#FFCCE9';
+    
+    const canvas = await htmlToImage.toCanvas(container, {
+      pixelRatio: 5,
+      backgroundColor: bgColor,
+      quality: 1,
+      width: cropWidth,
+      height: cropHeight,
+      style: {
+        transform: `translate(${-cropX}px, ${-cropY}px)`,
+        transformOrigin: 'top left'
+      }
+    });
+    
+    const dataUrl = canvas.toDataURL('image/png');
+    const link = document.createElement('a');
+    link.download = `mindmap_hq_colored_${getDateString()}.png`;
+    link.href = dataUrl;
+    link.click();
+    setStatus("✅ PNG HQ (цветной) сохранён!");
+    
+  } catch (error) {
+    console.error('Export error:', error);
+    setStatus("❌ Ошибка: " + error.message, true);
+  } finally {
+    // ВОССТАНАВЛИВАЕМ ВСЁ
+    originalShadows.forEach(({ node, shadow }) => { node.style.boxShadow = shadow; });
+    container.style.overflow = originalOverflow;
+    stage.style.position = originalPosition;
+    state.panX = originalPanX;
+    state.panY = originalPanY;
+    state.scale = originalScale;
+    updateTransform();
+    showUIElements();
+    showLoading(false);
+    if (typeof render === 'function') render();
+  }
 }
-
-
-
 
 // pdf with background 
 
@@ -2727,6 +2960,283 @@ if (mapShellTouch) {
         e.preventDefault();
     }, { passive: false });
 }
+
+// ======================== СОХРАНЕНИЕ И ЗАГРУЗКА КАРТЫ ========================
+
+// Сохранение всей карты в localStorage
+function saveMapToLocalStorage() {
+  try {
+    const mapData = {
+      nodes: [],
+      rootId: state.rootId,
+      idCounter: state.idCounter,
+      panX: state.panX,
+      panY: state.panY,
+      scale: state.scale,
+      userPalette: paletteColors,
+      version: "1.0",
+      backgroundColor: mapShell.style.background || '#FFCCE9' 
+    };
+    
+    state.nodes.forEach(node => {
+      mapData.nodes.push({
+        id: node.id,
+        text: node.text,
+        parentId: node.parentId,
+        children: node.children,
+        x: node.x,
+        y: node.y,
+        color: node.color,
+        width: node.width,
+        height: node.height,
+        isPlainText: node.isPlainText,
+        fontSize: node.fontSize,
+        shape: node.shape
+      });
+    });
+    
+    localStorage.setItem('flower_map_autosave', JSON.stringify(mapData));
+    setStatus("💾 Карта автоматически сохранена");
+  } catch(e) {
+    console.error("Ошибка сохранения:", e);
+  }
+}
+
+// Загрузка карты из localStorage
+function loadMapFromLocalStorage() {
+  const saved = localStorage.getItem('flower_map_autosave');
+  if (!saved) return false;
+  
+  try {
+    const mapData = JSON.parse(saved);
+    if (!mapData.nodes || !mapData.nodes.length) return false;
+    
+    clearMapData();
+    
+    if (mapData.userPalette) {
+      for (let i = 0; i < 8 && i < mapData.userPalette.length; i++) {
+        if (mapData.userPalette[i]) paletteColors[i] = mapData.userPalette[i];
+      }
+      renderPalette();
+    }
+    
+    const nodeMap = new Map();
+    mapData.nodes.forEach(nodeData => {
+      const node = {
+        ...nodeData,
+        children: nodeData.children || []
+      };
+      state.nodes.set(nodeData.id, node);
+      nodeMap.set(nodeData.id, node);
+    });
+    
+    state.nodes.forEach(node => {
+      if (node.parentId && nodeMap.has(node.parentId)) {
+        const parent = state.nodes.get(node.parentId);
+        if (!parent.children.includes(node.id)) {
+          parent.children.push(node.id);
+        }
+      }
+    });
+    
+    state.rootId = mapData.rootId;
+    state.idCounter = mapData.idCounter;
+    state.panX = mapData.panX;
+    state.panY = mapData.panY;
+    state.scale = mapData.scale;
+    if (mapData.backgroundColor) {
+  mapShell.style.background = mapData.backgroundColor;
+  bgColorInput.value = mapData.backgroundColor;
+}
+    
+    renderPalette();
+    render();
+    updateTransform();
+    setStatus("🔄 Карта восстановлена из автосохранения");
+    return true;
+  } catch(e) {
+    console.error("Ошибка загрузки:", e);
+    return false;
+  }
+}
+
+// Автосохранение (вызывается при любом изменении)
+function autoSave() {
+  saveMapToLocalStorage();
+}
+
+// Экспорт карты в JSON файл
+function exportMapToJSON() {
+  try {
+    const mapData = {
+      nodes: [],
+      rootId: state.rootId,
+      idCounter: state.idCounter,
+      panX: state.panX,
+      panY: state.panY,
+      scale: state.scale,
+      userPalette: paletteColors,
+      exportDate: new Date().toISOString(),
+      version: "1.0"
+    };
+    
+    state.nodes.forEach(node => {
+      mapData.nodes.push({
+        id: node.id,
+        text: node.text,
+        parentId: node.parentId,
+        children: node.children,
+        x: node.x,
+        y: node.y,
+        color: node.color,
+        width: node.width,
+        height: node.height,
+        isPlainText: node.isPlainText,
+        fontSize: node.fontSize,
+        shape: node.shape
+      });
+    });
+    
+    const jsonStr = JSON.stringify(mapData, null, 2);
+    const blob = new Blob([jsonStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `flower_map_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    setStatus("📁 Карта экспортирована в JSON файл");
+  } catch(e) {
+    setStatus("❌ Ошибка экспорта: " + e.message, true);
+  }
+}
+
+// Импорт карты из JSON файла
+function importMapFromJSON(file) {
+  console.log("📂 Начинаем импорт файла:", file.name);
+  
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      console.log("📄 Файл прочитан, парсим JSON...");
+      const mapData = JSON.parse(e.target.result);
+      console.log("✅ JSON распарсен:", mapData);
+      
+      if (!mapData.nodes || !mapData.nodes.length) {
+        throw new Error("Неверный формат файла: нет узлов");
+      }
+      
+      console.log("🔄 Очищаем текущую карту...");
+      clearMapData();
+      
+      if (mapData.userPalette) {
+        console.log("🎨 Восстанавливаем палитру");
+        for (let i = 0; i < 8 && i < mapData.userPalette.length; i++) {
+          if (mapData.userPalette[i]) paletteColors[i] = mapData.userPalette[i];
+        }
+        renderPalette();
+      }
+      
+      console.log("📦 Восстанавливаем узлы...");
+      const nodeMap = new Map();
+      mapData.nodes.forEach(nodeData => {
+        const node = {
+          ...nodeData,
+          children: nodeData.children || []
+        };
+        state.nodes.set(nodeData.id, node);
+        nodeMap.set(nodeData.id, node);
+        console.log("  - Узел восстановлен:", nodeData.id, nodeData.text);
+      });
+      
+      console.log("🔗 Восстанавливаем связи между узлами...");
+      state.nodes.forEach(node => {
+        if (node.parentId && nodeMap.has(node.parentId)) {
+          const parent = state.nodes.get(node.parentId);
+          if (!parent.children.includes(node.id)) {
+            parent.children.push(node.id);
+          }
+        }
+      });
+      
+      state.rootId = mapData.rootId;
+      state.idCounter = mapData.idCounter || state.idCounter;
+      state.panX = mapData.panX || 0;
+      state.panY = mapData.panY || 0;
+      state.scale = mapData.scale || 1;
+      
+      console.log("🖌️ Перерисовываем карту...");
+      renderPalette();
+      render();
+      updateTransform();
+      
+      setStatus("✅ Карта успешно импортирована из JSON файла!");
+      console.log("🎉 Импорт завершён успешно!");
+      
+    } catch(err) {
+      console.error("❌ Ошибка импорта:", err);
+      setStatus("❌ Ошибка импорта: " + err.message, true);
+      alert("Не удалось загрузить файл. Проверьте, что это правильный JSON файл карты.");
+    }
+  };
+  
+  reader.onerror = function() {
+    console.error("❌ Ошибка чтения файла");
+    setStatus("❌ Ошибка чтения файла", true);
+    alert("Не удалось прочитать файл");
+  };
+  
+  reader.readAsText(file);
+}
+
+// Создание кнопок сохранения/загрузки в интерфейсе
+function addSaveLoadButtons() {
+  const panel = document.querySelector('.panel');
+  if (!panel) return;
+  
+  const existingDiv = document.getElementById('saveLoadContainer');
+  if (existingDiv) existingDiv.remove();
+  
+  const container = document.createElement('div');
+  container.id = 'saveLoadContainer';
+  container.className = 'mt-5 border-t border-[#e28ab8] pt-4';
+  container.innerHTML = `
+    <p class="text-sm font-medium text-[#811455] mb-2">💾 Сохранение карты</p>
+    <div class="flex flex-wrap gap-2">
+      <button id="saveJsonBtn" class="rounded-full bg-[#C71585] px-3 py-1.5 text-xs text-white hover:bg-[#b11278] cursor-pointer">
+        📁 Сохранить как JSON
+      </button>
+      <button id="loadJsonBtn" class="rounded-full bg-[#a6456e] px-3 py-1.5 text-xs text-white hover:bg-[#933d62] cursor-pointer">
+        📂 Загрузить JSON
+      </button>
+    </div>
+    <input type="file" id="hiddenFileInput" accept=".json" style="display: none;" />
+    <p class="text-xs text-[#6d2850] mt-2">🌸 Карта автоматически сохраняется в браузере. JSON файл можно переносить между устройствами.</p>
+  `;
+  
+  panel.appendChild(container);
+  
+  const saveBtn = document.getElementById('saveJsonBtn');
+  if (saveBtn) {
+    saveBtn.addEventListener('click', () => exportMapToJSON());
+  }
+  
+  const loadBtn = document.getElementById('loadJsonBtn');
+  const hiddenInput = document.getElementById('hiddenFileInput');
+  
+  if (loadBtn && hiddenInput) {
+    loadBtn.addEventListener('click', () => {
+      hiddenInput.click();
+    });
+    
+    hiddenInput.addEventListener('change', (e) => {
+      if (e.target.files && e.target.files[0]) {
+        importMapFromJSON(e.target.files[0]);
+      }
+      hiddenInput.value = '';
+    });
+  }
+}
  
 function addPlainTextAtViewportCenter() {
   // Получаем центр видимой области (мировые координаты)
@@ -2750,30 +3260,69 @@ function addPlainTextAtViewportCenter() {
   render();
   setStatus("Добавлен текстовый блок. Дважды кликните для редактирования.");
 }
-function getContrastColor(hexColor) {
-  // Для plain-текста возвращаем стандартный тёмный цвет
-  if (!hexColor || hexColor === 'transparent') return '#333333';
-  
-  let hex = hexColor.replace('#', '');
-  if (hex.length === 3) {
-    hex = hex.split('').map(c => c + c).join('');
-  }
-  
-  const r = parseInt(hex.substring(0, 2), 16);
-  const g = parseInt(hex.substring(2, 4), 16);
-  const b = parseInt(hex.substring(4, 6), 16);
-  
-  // Формула яркости
-  const brightness = (r * 0.299 + g * 0.587 + b * 0.114);
-  
-  // Если цвет тёмный — белый текст, если светлый — тёмный
-  return brightness < 128 ? '#FFFFFF' : '#333333';
-}
-  
+
+
 // Кнопка "Текст" - создание свободного текстового блока
 const addPlainTextBtn = document.getElementById("addPlainTextBtn");
 if (addPlainTextBtn) {
   addPlainTextBtn.addEventListener("click", addPlainTextAtViewportCenter);
+}
+
+// ========== ОБРАБОТЧИКИ ВЫБОРА ФОРМЫ ==========
+document.querySelectorAll('.shape-preview').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const shapeType = btn.dataset.shape;
+    if (!state.primarySelectedId) {
+      setStatus("Сначала выберите элемент на карте.", true);
+      return;
+    }
+    const node = state.nodes.get(state.primarySelectedId);
+    if (!node || node.isPlainText) {
+      setStatus("Форму можно менять только у обычных элементов.", true);
+      return;
+    }
+    changeNodeShape(state.primarySelectedId, shapeType);
+    render();
+  });
+});
+
+
+// ========== ФУНКЦИИ ДЛЯ РАБОТЫ С ФОРМОЙ ЭЛЕМЕНТА ==========
+function getShapeClass(shapeType) {
+  switch(shapeType) {
+    case 'rect': return 'shape-rect';
+    case 'rounded': return 'shape-rounded';
+    case 'flower': return 'shape-flower';
+    default: return 'shape-flower';
+  }
+}
+
+function updateNodeShapeClass(nodeElement, shapeType) {
+  if (!nodeElement) return;
+  nodeElement.classList.remove('shape-rect', 'shape-rounded', 'shape-flower');
+  nodeElement.classList.add(getShapeClass(shapeType));
+}
+
+function changeNodeShape(nodeId, shapeType) {
+  const node = state.nodes.get(nodeId);
+  if (!node || node.isPlainText) return;
+  
+  node.shape = shapeType;
+  
+  const nodeElement = nodesLayer.querySelector(`.node[data-id="${nodeId}"]`);
+  if (nodeElement) updateNodeShapeClass(nodeElement, shapeType);
+  
+  setStatus(`Форма изменена на ${shapeType === 'rect' ? 'прямоугольник' : shapeType === 'rounded' ? 'скруглённый' : 'цветочную'}`);
+ autoSave();
+}
+
+function updateShapeSelectorUI(shapeType) {
+  document.querySelectorAll('.shape-preview').forEach(btn => {
+    btn.classList.remove('active');
+    if (btn.dataset.shape === shapeType) btn.classList.add('active');
+  });
 }
 
 // ========== УПРАВЛЕНИЕ РАЗМЕРОМ ШРИФТА ==========
@@ -2861,6 +3410,12 @@ if (fontSizeDecrease) {
     e.stopPropagation();
     changeFontSize(-2);
   });
+}
+
+if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', addSaveLoadButtons);
+} else {
+    addSaveLoadButtons();
 }
   </script>
 </body>
